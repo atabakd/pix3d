@@ -152,6 +152,7 @@ def render(data, output_path):
     #render_to_file(output_path)
 
     #render to depth
+    # https://blender.stackexchange.com/a/42667
     bpy.context.scene.use_nodes = True
     tree = bpy.context.scene.node_tree
     links = tree.links
