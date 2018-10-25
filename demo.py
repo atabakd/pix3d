@@ -125,6 +125,8 @@ def render_to_file(outpath):
 
 
 def render(data, output_path):
+
+
     w, h = data['img_size']
     set_cycles(w=w, h=h, n_samples=50)
 
@@ -146,6 +148,38 @@ def render(data, output_path):
     camera = add_camera((0, 0, 0), (0, np.pi, 0), 'camera', 'PERSP',
                         data['focal_length'], 'HORIZONTAL', 32)
     camera.data.clip_end = 1e10
+
+    #render_to_file(output_path)
+
+    #render to depth
+    bpy.context.scene.use_nodes = True
+    tree = bpy.context.scene.node_tree
+    links = tree.links
+
+    rl = tree.nodes.new('CompositorNodeRLayers')
+
+    map = tree.nodes.new(type="CompositorNodeMapValue")
+    # Size is chosen kind of arbitrarily, try out until you're satisfied with resulting depth map.
+    map.size = [0.6]
+    map.use_min = True
+    map.min = [0]
+    map.use_max = True
+    map.max = [255]
+    links.new(rl.outputs[2], map.inputs[0])
+
+    invert = tree.nodes.new(type="CompositorNodeInvert")
+    links.new(map.outputs[0], invert.inputs[1])
+
+    # The viewer can come in handy for inspecting the results in the GUI
+    depthViewer = tree.nodes.new(type="CompositorNodeViewer")
+    links.new(invert.outputs[0], depthViewer.inputs[0])
+    # Use alpha from input.
+    links.new(rl.outputs[1], depthViewer.inputs[1])
+
+    # create a file output node and set the path
+    fileOutput = tree.nodes.new(type="CompositorNodeOutputFile")
+    fileOutput.base_path = "./"
+    links.new(invert.outputs[0], fileOutput.inputs[0])
 
     render_to_file(output_path)
 
