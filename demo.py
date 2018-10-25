@@ -6,6 +6,7 @@ import argparse
 import numpy as np
 import bpy
 from mathutils import Matrix
+import math
 
 
 def set_cycles(w=None, h=None, n_samples=None):
@@ -51,6 +52,7 @@ def set_cycles(w=None, h=None, n_samples=None):
     scene.render.image_settings.file_format = 'PNG'
     scene.render.image_settings.color_mode = 'RGBA'
     scene.render.image_settings.color_depth = '8'
+    cycles.device = "GPU"
 
 
 def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
@@ -149,8 +151,7 @@ def render(data, output_path):
                         data['focal_length'], 'HORIZONTAL', 32)
     camera.data.clip_end = 1e10
 
-    #render_to_file(output_path)
-
+    """
     #render to depth
     # https://blender.stackexchange.com/a/42667
     bpy.context.scene.use_nodes = True
@@ -170,19 +171,85 @@ def render(data, output_path):
 
     invert = tree.nodes.new(type="CompositorNodeInvert")
     links.new(map.outputs[0], invert.inputs[1])
-
-    # The viewer can come in handy for inspecting the results in the GUI
-    depthViewer = tree.nodes.new(type="CompositorNodeViewer")
-    links.new(invert.outputs[0], depthViewer.inputs[0])
-    # Use alpha from input.
-    links.new(rl.outputs[1], depthViewer.inputs[1])
-
+    
     # create a file output node and set the path
     fileOutput = tree.nodes.new(type="CompositorNodeOutputFile")
     fileOutput.base_path = "./"
     links.new(invert.outputs[0], fileOutput.inputs[0])
+    """
 
-    render_to_file(output_path)
+
+    # clear all nodes to start clean
+    #for node in tree.nodes:
+    #    tree.nodes.remove(node)
+
+    #https://github.com/panmari/stanford-shapenet-renderer/blob/master/render_blender.py
+    bpy.context.scene.use_nodes = True
+    tree = bpy.context.scene.node_tree
+    links = tree.links
+
+    # Add passes for additionally dumping albedo and normals.
+    bpy.context.scene.render.layers["RenderLayer"].use_pass_normal = True
+    bpy.context.scene.render.layers["RenderLayer"].use_pass_color = True
+    #bpy.context.scene.render.image_settings.file_format = args.format
+    #bpy.context.scene.render.image_settings.color_depth = args.color_depth
+
+    render_layers = tree.nodes.new('CompositorNodeRLayers')
+
+    # Clear default nodes
+    #for n in tree.nodes:
+    #    tree.nodes.remove(n)
+
+    depth_file_output = tree.nodes.new(type="CompositorNodeOutputFile")
+    depth_file_output.label = 'Depth Output'
+    # Remap as other types can not represent the full range of depth.
+    map = tree.nodes.new(type="CompositorNodeMapValue")
+    # Size is chosen kind of arbitrarily, try out until you're satisfied with resulting depth map.
+    map.offset = [-0.7]
+    map.size = [0.5]
+    map.use_min = True
+    map.min = [0]
+    links.new(render_layers.outputs['Depth'], map.inputs[0])
+    links.new(map.outputs[0], depth_file_output.inputs[0])
+
+    scale_normal = tree.nodes.new(type="CompositorNodeMixRGB")
+    scale_normal.blend_type = 'MULTIPLY'
+    # scale_normal.use_alpha = True
+    scale_normal.inputs[2].default_value = (0.5, 0.5, 0.5, 1)
+    links.new(render_layers.outputs['Normal'], scale_normal.inputs[1])
+
+    bias_normal = tree.nodes.new(type="CompositorNodeMixRGB")
+    bias_normal.blend_type = 'ADD'
+    # bias_normal.use_alpha = True
+    bias_normal.inputs[2].default_value = (0.5, 0.5, 0.5, 0)
+    links.new(scale_normal.outputs[0], bias_normal.inputs[1])
+
+    normal_file_output = tree.nodes.new(type="CompositorNodeOutputFile")
+    normal_file_output.label = 'Normal Output'
+    links.new(bias_normal.outputs[0], normal_file_output.inputs[0])
+
+    albedo_file_output = tree.nodes.new(type="CompositorNodeOutputFile")
+    albedo_file_output.label = 'Albedo Output'
+    links.new(render_layers.outputs['Color'], albedo_file_output.inputs[0])
+
+    for output_node in [depth_file_output, normal_file_output, albedo_file_output]:
+        output_node.base_path = ''
+
+    scene = bpy.context.scene
+    scene.render.filepath=output_path
+    depth_file_output.file_slots[0].path = scene.render.filepath + "_depth.png"
+    normal_file_output.file_slots[0].path = scene.render.filepath + "_normal.png"
+    #albedo_file_output.file_slots[0].path = scene.render.filepath + "_albedo.png"
+
+
+    for o in bpy.data.objects:
+        if o.type == 'CAMERA':
+            bpy.context.scene.camera = o
+            break
+
+    bpy.ops.render.render(write_still=True)  # render still
+
+    #render_to_file(output_path)
 
 
 if __name__ == '__main__':
