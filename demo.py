@@ -54,7 +54,6 @@ def set_cycles(w=None, h=None, n_samples=None):
     scene.render.image_settings.color_depth = '8'
     cycles.device = "GPU"
 
-
 def add_object(model_path, rot_mat=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
                trans_vec=(0, 0, 0), scale=1, name=None):
     # Import
@@ -236,9 +235,10 @@ def render(data, output_path):
         output_node.base_path = ''
 
     scene = bpy.context.scene
-    scene.render.filepath=output_path
-    depth_file_output.file_slots[0].path = scene.render.filepath + "_depth.png"
-    normal_file_output.file_slots[0].path = scene.render.filepath + "_normal.png"
+    scene.render.filepath="./render/"+output_path+".png"
+    print (output_path)
+    depth_file_output.file_slots[0].path = "./depth/"+output_path + "#"
+    normal_file_output.file_slots[0].path = "./normals/"+output_path + "#"
     #albedo_file_output.file_slots[0].path = scene.render.filepath + "_albedo.png"
 
 
@@ -265,7 +265,8 @@ if __name__ == '__main__':
     args = parser.parse_args(argv)
 
     data_list = json.load(open('pix3d.json'))
-    render(data_list[args.anno_idx], args.output_path)
+    #render(data_list[args.anno_idx], args.output_path)
+    print("Number of Items in the Dataset: " , len(data_list))
+    render(data_list[args.anno_idx], data_list[args.anno_idx]['img'][4:-4])
     print('Original Image:', data_list[args.anno_idx]['img'])
     print('Saved to:', args.output_path)
-
