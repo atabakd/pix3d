@@ -268,7 +268,7 @@ if __name__ == '__main__':
     argv = sys.argv[sys.argv.index('--') + 1:]
   args = parser.parse_args(argv)
 
-  with open('0000.json', "r") as j_file:
+  with open('{:04d}.json'.format(args.division_num), "r") as j_file:
     data_list = json.load(j_file)
 
 
