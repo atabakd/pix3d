@@ -7,8 +7,23 @@ from collections import OrderedDict
 import os
 import glob
 from skimage import io
+# from matplotlib import pyplot as plt
+
+
+
+def robust_minmax(data, m=4.):
+  d = np.abs(data - np.nanmedian(data))
+  mdev = np.nanmedian(d)
+  s = d / mdev if mdev else 0.
+  # new_data = np.where(s < m, data, 1.)
+  # plt.imshow(new_data)
+  # plt.show()
+  new_data = data[s < m]
+  return new_data.min(), new_data.max()
+
 
 def get_unoccluded(label_path, distances, factor_depth, save_mask_img = False):
+  # global depth_intrinsics, rgb_intrinsics, rotation_depth2rgb, trans_depth2rgb
   label_img = cv2.imread(label_path, 0)
   unique_objs = np.unique(label_img)
   unoccluded_objs = list()
@@ -38,9 +53,16 @@ def get_unoccluded(label_path, distances, factor_depth, save_mask_img = False):
       masks_path.append(mask_path)
       depth_img = io.imread(label_path.replace("label", "depth")).astype(np.float)
       depth_img /= factor_depth
-      depth_mask = np.where(obj_mask, depth_img, 0.)
-      depth_max_white_hole = np.where(depth_mask <= 0.05, np.iinfo(np.uint16).max, depth_mask)
-      minmax_vals.append((depth_max_white_hole.min(), depth_mask.max()))
+      # depth_img = depth2rgb(label_path.replace("label", "depth"),
+      #                       factor_depth,
+      #                       depth_intrinsics,
+      #                       rotation_depth2rgb,
+      #                       trans_depth2rgb,
+      #                       rgb_intrinsics)
+      depth_mask = np.where(obj_mask, depth_img, np.nan)
+      minmax_vals.append(robust_minmax(depth_mask))
+      # depth_max_white_hole = np.where(depth_mask <= 0.05, np.iinfo(np.uint16).max, depth_mask)
+      # minmax_vals.append((depth_max_white_hole.min(), depth_mask.max()))
 
       idx += 1
       if save_mask_img:
@@ -61,8 +83,8 @@ def get_unoccluded(label_path, distances, factor_depth, save_mask_img = False):
   return unoccluded_objs, masks_path, minmax_vals
 
 
-def rt_from_label(label_path, label_mat):
-  # label_mat = loadmat(label_path.replace("label.png", "meta.mat"))
+def rt_from_label(label_path):
+  label_mat = loadmat(label_path.replace("label.png", "meta.mat"))
   distances = {k[0]: v[2, 3] for k, v in zip(label_mat['cls_indexes'], label_mat['poses'].transpose(2, 0, 1))}
   unoccluded_objs, masks_path, minmax_vals = get_unoccluded(label_path, distances, label_mat['factor_depth'])
   obj_pose_dict = dict()
@@ -74,6 +96,7 @@ def rt_from_label(label_path, label_mat):
 
 
 def dump_json(folder_name):
+  global depth_intrinsics, rgb_intrinsics, rotation_depth2rgb, trans_depth2rgb
   base = "/media/hdd/YCBvideo"
   classes = np.loadtxt(os.path.join(base, "YCB_Video_toolbox/classes.txt"), dtype=object)
   with open(folder_name+".json", "w+") as j_file:
@@ -98,32 +121,31 @@ def dump_json(folder_name):
     trans_depth2rgb = np.array([0.02640966, -9.9086e-05, 0.0002972445])
     
 
-    num_files = len(glob.glob("/media/hdd/YCBvideo/YCB_Video_Dataset/YCB_Video_Dataset/data/" + folder_name + "/*-label.png"))
-    for label_num in range(1, num_files+1):
-      label_path = os.path.join(base, "YCB_Video_Dataset/YCB_Video_Dataset/data", folder_name, "{:06d}-label.png".format(label_num))
-      label_mat = loadmat(label_path.replace("label.png", "meta.mat"))
-      obj_pose_dict = rt_from_label(label_path, label_mat)
-      for obj in obj_pose_dict.keys():
-        obj_dict = OrderedDict()
-        obj_dict["img"] = label_path
-        obj_dict["mask"] = obj_pose_dict[obj][1]
-        obj_dict["depth_minmax"] = obj_pose_dict[obj][2]
-        obj_dict["model"] = "/media/hdd/YCBvideo/YCB_Video_Dataset/YCB_Video_Dataset/models/" + \
-                            classes[obj - 1] + "/textured.obj"
-        obj_dict["rot_mat"] = obj_pose_dict[obj][0][:, :-1].squeeze(2).tolist()
-        obj_dict["trans_mat"] = obj_pose_dict[obj][0][:, -1].squeeze(1).tolist()
-        obj_dict["focal_length"] = label_mat["focal_length"]
-        data.append(obj_dict)
+  num_files = len(glob.glob("/media/hdd/YCBvideo/YCB_Video_Dataset/YCB_Video_Dataset/data/" + folder_name + "/*-label.png"))
+  for label_num in range(1, num_files+1):
+    label_path = os.path.join(base, "YCB_Video_Dataset/YCB_Video_Dataset/data", folder_name, "{:06d}-label.png".format(label_num))
+    obj_pose_dict = rt_from_label(label_path)
+    for obj in obj_pose_dict.keys():
+      obj_dict = OrderedDict()
+      obj_dict["img"] = label_path
+      obj_dict["mask"] = obj_pose_dict[obj][1]
+      obj_dict["depth_minmax"] = obj_pose_dict[obj][2]
+      obj_dict["model"] = "/media/hdd/YCBvideo/YCB_Video_Dataset/YCB_Video_Dataset/models/" + \
+                          classes[obj - 1] + "/textured.obj"
+      obj_dict["rot_mat"] = obj_pose_dict[obj][0][:, :-1].squeeze(2).tolist()
+      obj_dict["trans_mat"] = obj_pose_dict[obj][0][:, -1].squeeze(1).tolist()
+      # obj_dict["focal_length"] = label_mat["focal_length"]
+      data.append(obj_dict)
 
-    json.dump(data, j_file, indent=2)
+  json.dump(data, j_file, indent=2)
 
 
 
 if __name__ == "__main__":
-  from joblib import Parallel, delayed
-  Parallel(n_jobs=6)(delayed(dump_json)("{:04d}".format(i)) for i in range(60))
+  # from joblib import Parallel, delayed
+  # Parallel(n_jobs=6)(delayed(dump_json)("{:04d}".format(i)) for i in range(60))
   # for i in range(60):
-  #   dump_json("{:04d}".format(i))
+    dump_json("{:04d}".format(0))
   # from joblib import Parallel, delayed
   # Parallel(n_jobs=6)(delayed(dump_json)("{:04d}".format(i)) for i in range(60))
   # for i in range(60):

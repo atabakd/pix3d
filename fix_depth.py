@@ -32,22 +32,28 @@ def depth_to_3d(depth, depth_intrinsics, depth_factor):
   rows, cols = depth.shape
   c, r = np.meshgrid(np.arange(cols), np.arange(rows), sparse=True)
   valid = (depth >= 0) & (depth <= np.iinfo(np.uint16).max)
-  z = np.where(valid, depth*1.0 / depth_factor, np.nan)
+  z = np.where(valid, depth / depth_factor, np.nan)
   x = np.where(valid, z * (c - cx) / fx, 0)
   y = np.where(valid, z * (r - cy) / fy, 0)
   return np.dstack((x, y, z))
 
 
 # http://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/EPSRC_SSAZ/node3.html
-def project_to_rgb(xyz, rgb_intrinsics, rotation_matrix, translation_vec):
+def project_to_rgb(point_3d, rgb_intrinsics, rotation_matrix, translation_vec):
   rotation_vec = cv2.Rodrigues(rotation_matrix)[0]
-  img = cv2.projectPoints(xyz.reshape(-1, 3), rotation_vec, translation_vec, rgb_intrinsics, None)[0].squeeze(
+  img = cv2.projectPoints(point_3d.reshape(-1, 3), rotation_vec, translation_vec, rgb_intrinsics, None)[0].squeeze(
     1)  # .reshape(160,120, -1)
   xi = np.arange(320, 960)
   yi = np.arange(240, 720)
   xi, yi = np.meshgrid(xi, yi)
   fixed_depth = griddata(img, point_3d[..., 2].reshape(-1, 1), (xi, yi), method='linear')
   return fixed_depth
+
+def depth2rgb(depth_path, depth_factor, depth_intrinsics, depth2rgb_R, depth2rgb_T, rgb_intrinsics):
+  depth_img = io.imread(depth_path).astype(np.float)
+  point_3d = depth_to_3d(depth_img, depth_intrinsics, depth_factor)
+  return project_to_rgb(point_3d, rgb_intrinsics, depth2rgb_R, depth2rgb_T).squeeze(2)
+
 
 
 
