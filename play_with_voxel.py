@@ -5,9 +5,14 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 import trimesh
 import json
+import binvox_rw
 
 def plot_voxel(voxel_path):
   voxel = np.load('/home/atabak/ycb_sample/fromHisDataset/02691156_fff513f407e00e85a9ced22d91ad7027_view019_gt_rotvox_samescale_128.npz')
+  voxel = voxel['voxel']
+  # with open('rotated_mesh_1.binvox', 'rb') as f:
+  #   m1 = binvox_rw.read_as_3d_array(f)
+  # voxel=m1.data
   fig = plt.figure()
   ax = fig.gca(projection='3d')
   ax.set_xlabel("x")
@@ -15,8 +20,9 @@ def plot_voxel(voxel_path):
   ax.set_zlabel("z")
   ax.set_aspect('equal')
 
-  ax.voxels(voxel['voxel'], edgecolor="k")
-  ax.view_init(0, 180)
+  ax.voxels(voxel, edgecolor="k")
+  # ax.view_init(90, 270)
+  ax.view_init(0, 0)
   plt.draw()
 
   plt.show()
@@ -50,11 +56,15 @@ def mesh_to_voxel(mesh_path):
   # mesh.show()
   is_watertight = False
   while (is_watertight == False):
-    print("repairing mesh...")
+  #   print("repairing mesh...")
     is_watertight = trimesh.repair.fill_holes(mesh)
     
-  print(mesh.is_watertight)
+  mesh.export("rotated_mesh.obj", file_type='obj')
+  new_mesh = trimesh.load("rotated_mesh.obj")
+  new_mesh.show()
+  
+  
 if __name__ == "__main__":
   trimesh.util.attach_to_log()
-  # plot_voxel(2)
-  mesh_to_voxel('/home/atabak/ycb_sample/009_gelatin_box/textured.obj')
+  plot_voxel(2)
+  # mesh_to_voxel('/home/atabak/ycb_sample/009_gelatin_box/textured.obj')
