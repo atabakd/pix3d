@@ -1,18 +1,25 @@
 from __future__ import division, print_function
 
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 import trimesh
 import json
-import binvox_rw
+import argparse
+import sys
+import os
 
-def plot_voxel(voxel_path):
-  voxel = np.load('/home/atabak/ycb_sample/fromHisDataset/02691156_fff513f407e00e85a9ced22d91ad7027_view019_gt_rotvox_samescale_128.npz')
-  voxel = voxel['voxel']
-  # with open('rotated_mesh_1.binvox', 'rb') as f:
+def plot_voxel(voxel):
+  # voxel = np.load('/home/atabak/tmp/ycb_sample/fromHisDataset/02691156_fff513f407e00e85a9ced22d91ad7027_view019_gt_rotvox_samescale_128.npz')
+  # voxel = voxel['voxel']
+  # with open('rotated_mesh.binvox', 'rb') as f:
   #   m1 = binvox_rw.read_as_3d_array(f)
+  #
   # voxel=m1.data
+  from skimage.measure import block_reduce
+  ds_voxel = block_reduce(voxel, (4, 4, 4))
   fig = plt.figure()
   ax = fig.gca(projection='3d')
   ax.set_xlabel("x")
@@ -20,9 +27,10 @@ def plot_voxel(voxel_path):
   ax.set_zlabel("z")
   ax.set_aspect('equal')
 
-  ax.voxels(voxel, edgecolor="k")
+  # ax.voxels(voxel, edgecolor="k")
+  ax.voxels(ds_voxel , edgecolor="k", facecolors=[1, 0, 0, 0.05])
   # ax.view_init(90, 270)
-  ax.view_init(0, 0)
+  ax.view_init(0, 180)
   plt.draw()
 
   plt.show()
@@ -30,41 +38,65 @@ def plot_voxel(voxel_path):
   #   ax.view_init(0, angle)
   #   plt.draw()
   #   plt.pause(.001)
+
   
-def mesh_to_voxel(mesh_path):
-  
-  # load a file by name or from a buffer
-  mesh = trimesh.load(mesh_path)
-  with open('/home/atabak/ycb_sample/{:04d}.json'.format(0), 'r') as j_file:
-    data_list = json.load(j_file)
-  dict_info = data_list[0]
+def mesh_to_voxel(dict_info, outdir):
+
+  mesh = trimesh.load(dict_info['model'].split('YCB_Video_Dataset/YCB_Video_Dataset/')[1])
   rot = np.array(dict_info['rot_mat'])
-  trans = np.array(dict_info['trans_mat'])
   RT = np.zeros((4,4))
-  rot_aux = np.array([(1.0, 0.0, 0.0),
-             (0.0, -1.0, 0.0),
-             (0.0, 0.0, -1.0)])
   RT_aux = np.zeros((4,4))
-  RT[:3,:3] = rot#*rot_aux
-  RT_aux[:3,:3] = rot_aux#*rot_aux
-  RT[:3,3] = trans
+  RT[:3,:3] = rot
   RT[3,3] = 1.
-  RT_aux[3,3] = 1.
   mesh.apply_transform(RT)
+
+  # 90 around z
+  rot_90_z = np.array([(0.0, 1.0, 0.0),
+                       (-1.0, 0.0, 0.0),
+                       (0.0, 0.0, 1.0)])
+  # 90 around y
+  rot_90_y = np.array([(0.0, 0.0, 1.0),
+                       (0.0, 1.0, 0.0),
+                       (-1.0, 0.0, 0.0)])
+
+
+  RT_aux[3, 3] = 1.
+  RT_aux[:3, :3] = rot_90_z
   mesh.apply_transform(RT_aux)
-  print(mesh.is_watertight)
-  # mesh.show()
+  RT_aux[:3, :3] = rot_90_y
+  mesh.apply_transform(RT_aux)
+
+  RT_aux[3,3] = 1.
   is_watertight = False
   while (is_watertight == False):
-  #   print("repairing mesh...")
     is_watertight = trimesh.repair.fill_holes(mesh)
-    
-  mesh.export("rotated_mesh.obj", file_type='obj')
-  new_mesh = trimesh.load("rotated_mesh.obj")
-  new_mesh.show()
+
+  meshvoxel = trimesh.voxel.local_voxelize(mesh, (0., 0., 0.), pitch=0.25/129, radius=64)[0] #25cm devided in 129 voxels
+
+  voxel_path = dict_info['mask'].replace('mask', 'voxel').replace('png', 'npz')
+  voxel_dir = os.path.dirname(voxel_path)
+  if not os.path.exists(voxel_dir):
+    os.makedirs(voxel_dir)
+
+  np.savez(voxel_path, voxel=meshvoxel)
   
   
 if __name__ == "__main__":
   trimesh.util.attach_to_log()
-  plot_voxel(2)
-  # mesh_to_voxel('/home/atabak/ycb_sample/009_gelatin_box/textured.obj')
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--division_num', type=int, default=6,
+                      help='division number 0<=division_num<60')
+  parser.add_argument('--output_path', type=str,
+                      default='/media/hdd/YCBvideo/YCB_Video_Dataset/Generated_YCB_Video_Dataset',
+                      help='output image path')
+  if '--' not in sys.argv:
+    argv = []
+  else:
+    argv = sys.argv[sys.argv.index('--') + 1:]
+
+  args = parser.parse_args(argv)
+  with open(os.path.join('json', '{:04d}.json'.format(args.division_num)), "r") as j_file:
+    data_list = json.load(j_file)
+
+  for data in data_list:
+    mesh_to_voxel(data)
