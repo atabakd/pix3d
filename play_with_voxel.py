@@ -40,9 +40,10 @@ def plot_voxel(voxel):
   #   plt.pause(.001)
 
   
-def mesh_to_voxel(dict_info, outdir):
+def mesh_to_voxel(dict_info):
 
-  mesh = trimesh.load(dict_info['model'].split('YCB_Video_Dataset/YCB_Video_Dataset/')[1])
+  #mesh = trimesh.load(dict_info['model'].split('YCB_Video_Dataset/YCB_Video_Dataset/')[1])
+  mesh = trimesh.load(dict_info['model'])
   rot = np.array(dict_info['rot_mat'])
   RT = np.zeros((4,4))
   RT_aux = np.zeros((4,4))
@@ -84,17 +85,11 @@ def mesh_to_voxel(dict_info, outdir):
 if __name__ == "__main__":
   trimesh.util.attach_to_log()
   parser = argparse.ArgumentParser()
-  parser.add_argument('--division_num', type=int, default=6,
+  parser.add_argument('--division_num', type=int, default=0,
                       help='division number 0<=division_num<60')
-  parser.add_argument('--output_path', type=str,
-                      default='/media/hdd/YCBvideo/YCB_Video_Dataset/Generated_YCB_Video_Dataset',
-                      help='output image path')
-  if '--' not in sys.argv:
-    argv = []
-  else:
-    argv = sys.argv[sys.argv.index('--') + 1:]
+  
+  args = parser.parse_args()
 
-  args = parser.parse_args(argv)
   with open(os.path.join('json', '{:04d}.json'.format(args.division_num)), "r") as j_file:
     data_list = json.load(j_file)
 
