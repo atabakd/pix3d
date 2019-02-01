@@ -52,7 +52,7 @@ def set_cycles(w=None, h=None, n_samples=None):
   scene.render.resolution_percentage = 100
   scene.render.use_file_extension = True
   scene.render.image_settings.file_format = 'PNG'
-  scene.render.image_settings.color_mode = 'RGBA'
+  scene.render.image_settings.color_mode = 'RGB'
   scene.render.image_settings.color_depth = '8'
   cycles.device = "GPU"
 
@@ -182,8 +182,8 @@ def render(data, output_path, division_num):
   # Remap as other types can not represent the full range of depth.
   map = tree.nodes.new(type="CompositorNodeMapValue")
   # Size is chosen kind of arbitrarily, try out until you're satisfied with resulting depth map.
-  map.offset = [-0.7]
-  map.size = [0.5]
+  map.offset = [-data['depth_minmax'][0]+0.0]
+  map.size = [6.0]
   map.use_min = True
   map.min = [0]
   links.new(render_layers.outputs['Depth'], map.inputs[0])
@@ -258,7 +258,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--anno_idx', type=int, default=0,
                       help='index of annotion')
-  parser.add_argument('--division_num', type=int, default=0,
+  parser.add_argument('--division_num', type=int, default=23,
                       help='division number 0<=division_num<60')
   parser.add_argument('--output_path', type=str, default='/media/hdd/YCBvideo/YCB_Video_Dataset/Generated_YCB_Video_Dataset',
                       help='output image path')
