@@ -31,19 +31,18 @@ def plot_voxel(voxel):
   ax.voxels(ds_voxel , edgecolor="k", facecolors=[1, 0, 0, 0.05])
   # ax.view_init(90, 270)
   ax.view_init(0, 180)
-  plt.draw()
-
+  plt.draw() 
   plt.show()
   # for angle in range(0, 360):
   #   ax.view_init(0, angle)
   #   plt.draw()
   #   plt.pause(.001)
 
-  
+
 def mesh_to_voxel(dict_info):
 
   #mesh = trimesh.load(dict_info['model'].split('YCB_Video_Dataset/YCB_Video_Dataset/')[1])
-  mesh = trimesh.load(dict_info['model'])
+  mesh = trimesh.load(dict_info['model'].replace('media', 'mnt'))
   rot = np.array(dict_info['rot_mat'])
   RT = np.zeros((4,4))
   RT_aux = np.zeros((4,4))
@@ -74,14 +73,14 @@ def mesh_to_voxel(dict_info):
 
   meshvoxel = trimesh.voxel.local_voxelize(mesh, (0., 0., 0.), pitch=0.25/129, radius=64)[0] #25cm devided in 129 voxels
 
-  voxel_path = dict_info['mask'].replace('mask', 'voxel').replace('png', 'npz')
+  voxel_path = dict_info['mask'].replace('mask', 'voxel').replace('png', 'npz').replace('media', 'mnt')
   voxel_dir = os.path.dirname(voxel_path)
   if not os.path.exists(voxel_dir):
     os.makedirs(voxel_dir)
 
   np.savez(voxel_path, voxel=meshvoxel)
-  
-  
+
+
 if __name__ == "__main__":
   trimesh.util.attach_to_log()
   parser = argparse.ArgumentParser()
@@ -89,6 +88,8 @@ if __name__ == "__main__":
                       help='division number 0<=division_num<60')
   
   args = parser.parse_args()
+  os.path.joi 
+
 
   with open(os.path.join('json', '{:04d}.json'.format(args.division_num)), "r") as j_file:
     data_list = json.load(j_file)

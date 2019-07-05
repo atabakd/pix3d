@@ -8,7 +8,7 @@ def gen_voxels(num):
 if __name__ == '__main__':
 
   from joblib import Parallel, delayed
-  Parallel(n_jobs=12)(delayed(gen_voxels)(i) for i in range(60))
+  Parallel(n_jobs=12)(delayed(gen_voxels)(i) for i in range(30, 36))
 
 
 #  gen_voxels(10)
