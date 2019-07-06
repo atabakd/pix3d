@@ -217,8 +217,8 @@ def render(data, output_path, division_num):
   # new type of depth https://tinyurl.com/y6g4nk8c
 
   map = tree.nodes.new(type="CompositorNodeMapRange")
-  map.inputs[1].default_value = min_p
-  map.inputs[2].default_value = max_p
+  map.inputs[1].default_value = min_p# + 0.01  adding 1cm here makes the image more bright, but it's probably unnecessary
+  map.inputs[2].default_value = max_p + 0.05 #  added 5cm to max, so it is not exactly black
   map.inputs[3].default_value = 1.0
   map.inputs[4].default_value = 0.0
   #import pdb; pdb.set_trace()
