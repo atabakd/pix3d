@@ -218,7 +218,7 @@ def render(data, output_path, division_num):
 
   map = tree.nodes.new(type="CompositorNodeMapRange")
   map.inputs[1].default_value = min_p
-  map.inputs[2].default_value = max_p
+  map.inputs[2].default_value = max_p + 0.05
   map.inputs[3].default_value = 1.0
   map.inputs[4].default_value = 0.0
   #import pdb; pdb.set_trace()
@@ -284,7 +284,7 @@ def render(data, output_path, division_num):
   np.savez(join(rototrans_dir, rototrans_name + ".npz"),
            rot=data["rot_mat"],
            trans=data["trans_mat"],
-           depth_minmax=[min_p, max_p])
+           depth_minmax=[min_p, max_p + 0.05])
 
 
 
