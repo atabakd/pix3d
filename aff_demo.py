@@ -352,7 +352,6 @@ if __name__ == '__main__':
   render_info = data_list[args.anno_idx]
   render_info['model'] = args.model_path
   render(render_info, args.output_path, args.division_num)
-  return
 
   # data_list = json.load(open('mug.json'))
   # render(data_list[args.anno_idx], args.output_path)
