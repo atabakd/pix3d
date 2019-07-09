@@ -30,14 +30,6 @@ def gen_render_for_division(gen_idx):
   # p = subprocess.Popen([com], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
   # out, err = p.communicate()
   subprocess.call([com], shell=True)
-  obj_dict = OrderedDict()
-  obj_dict["model"] = model_path
-
-  render_info = data_list[rand_idx]
-  render_name = os.path.basename(render_info["mask"]).replace("mask", "render")
-  render_dir = os.path.join(output_path, "render", "{:04d}".format(rand_division))
-  obj_dict["img"] = os.path.join(render_dir, render_name)
-  return rand_division, obj_dict
 
   # import pdb;pdb.set_trace()
 
@@ -47,20 +39,4 @@ if __name__ == '__main__':
 
   from joblib import Parallel, delayed
 
-  divisions, list_of_obj_dicts = Parallel(n_jobs=11)(delayed(gen_render_for_division)(i) for i in range(110))
-  if not os.path.exists("json_aff"):
-    os.makedirs("json_aff")
-
-  for division, obj_dict in zip(divisions, list_of_obj_dicts):
-    with open("json_aff/{:04d}.json".format(division), "w+") as j_file:
-      try:
-        data = json.load(j_file)
-        for idx, dicts in enumerate(data):
-          if dicts["img"] == obj_dict["img"]:
-            data[idx] = obj_dict  # there was a repetition due to randomness, so we replace with the new value
-            json.dump(data, j_file, indent=2)
-            continue
-      except ValueError:
-        data = list()
-      data.append(obj_dict)
-      json.dump(data, j_file, indent=2)
+  Parallel(n_jobs=11)(delayed(gen_render_for_division)(i) for i in range(10))

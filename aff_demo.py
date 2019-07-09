@@ -276,15 +276,16 @@ def render(data, output_path, division_num):
   normal_file_output.file_slots[0].path = join(normal_dir, normal_name) + "#"
 
 
-  rototrans_dir = join(output_path, "rototrans", "{:04d}".format(division_num))
-  if not exists(rototrans_dir):
-    makedirs(rototrans_dir)
+  meta_dir = join(output_path, "metadata", "{:04d}".format(division_num))
+  if not exists(meta_dir):
+    makedirs(meta_dir)
 
-  rototrans_name = basename(data["mask"]).replace("mask", "rototrans").split(".")[0]
-  np.savez(join(rototrans_dir, rototrans_name + ".npz"),
+  meta_name = basename(data["mask"]).replace("mask", "metadata").split(".")[0]
+  np.savez(join(meta_dir, meta_name + ".npz"),
            rot=data["rot_mat"],
            trans=data["trans_mat"],
-           depth_minmax=[min_p, max_p + 0.05])
+           depth_minmax=[min_p, max_p + 0.05],
+           model_path=data["model"])
 
 
 
@@ -351,6 +352,7 @@ if __name__ == '__main__':
   render_info = data_list[args.anno_idx]
   render_info['model'] = args.model_path
   render(render_info, args.output_path, args.division_num)
+  return
 
   # data_list = json.load(open('mug.json'))
   # render(data_list[args.anno_idx], args.output_path)
