@@ -25,10 +25,10 @@ def plot_voxel(voxel):
   ax.set_xlabel("x")
   ax.set_ylabel("y")
   ax.set_zlabel("z")
-  ax.set_aspect('equal')
+  #ax.set_aspect('equal')
 
   # ax.voxels(voxel, edgecolor="k")
-  ax.voxels(ds_voxel , edgecolor="k", facecolors=[1, 0, 0, 0.05])
+  ax.voxels(ds_voxel, edgecolor="k", facecolors=[1, 0, 0, 0.05])
   # ax.view_init(90, 270)
   ax.view_init(0, 180)
   plt.draw() 
@@ -39,15 +39,17 @@ def plot_voxel(voxel):
   #   plt.pause(.001)
 
 
-def mesh_to_voxel(dict_info):
+def mesh_to_voxel(dict_path):
 
   #mesh = trimesh.load(dict_info['model'].split('YCB_Video_Dataset/YCB_Video_Dataset/')[1])
-  mesh = trimesh.load(dict_info['model'].replace('media', 'mnt'))
-  rot = np.array(dict_info['rot_mat'])
-  RT = np.zeros((4,4))
-  RT_aux = np.zeros((4,4))
-  RT[:3,:3] = rot
-  RT[3,3] = 1.
+  #mesh = trimesh.load(dict_info['model'].replace('media', 'mnt'))
+  dict_info = np.load(dict_path)
+  mesh = trimesh.load(str(dict_info['model_path']))
+  rot = np.array(dict_info['rot'])
+  RT = np.zeros((4, 4))
+  RT_aux = np.zeros((4, 4))
+  RT[:3, :3] = rot
+  RT[3, 3] = 1.
   mesh.apply_transform(RT)
 
   # 90 around z
@@ -68,12 +70,14 @@ def mesh_to_voxel(dict_info):
 
   RT_aux[3,3] = 1.
   is_watertight = False
-  while (is_watertight == False):
+  attempts = 0
+  while (is_watertight == False and attempts < 10):
     is_watertight = trimesh.repair.fill_holes(mesh)
+    attempts += 1
 
   meshvoxel = trimesh.voxel.local_voxelize(mesh, (0., 0., 0.), pitch=0.25/129, radius=64)[0] #25cm devided in 129 voxels
 
-  voxel_path = dict_info['mask'].replace('mask', 'voxel').replace('png', 'npz').replace('media', 'mnt')
+  voxel_path = dict_path.replace('metadata', 'voxel')#.replace('png', 'npz').replace('media', 'mnt')
   voxel_dir = os.path.dirname(voxel_path)
   if not os.path.exists(voxel_dir):
     os.makedirs(voxel_dir)
@@ -88,10 +92,10 @@ if __name__ == "__main__":
                       help='division number 0<=division_num<60')
   
   args = parser.parse_args()
+  base_dir = "/mnt/hdd/aff_render/metadata"
+  target_dir = os.path.join(base_dir, '{:04d}'.format(args.division_num))
+  if os.path.exists(target_dir):
+    for info in os.listdir(target_dir):
+      target_path = os.path.join(target_dir, info)
+      mesh_to_voxel(target_path)
 
-
-  with open(os.path.join('json', '{:04d}.json'.format(args.division_num)), "r") as j_file:
-    data_list = json.load(j_file)
-
-  for data in data_list:
-    mesh_to_voxel(data)
