@@ -350,7 +350,7 @@ if __name__ == '__main__':
 
   # import pdb;pdb.set_trace()
   render_info = data_list[args.anno_idx]
-  render_info['model'] = args.model_path
+  render_info['model'] = args.model_path.replace(".obj", "_mycentered.obj")  # using centered meshes
   render(render_info, args.output_path, args.division_num)
 
   # data_list = json.load(open('mug.json'))
